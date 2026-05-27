@@ -61,6 +61,12 @@ yt-dlp -F "動画のURL"
 yt-dlp -f 137+140 "動画のURL"
 ```
 
+```bash
+# 実際に試したやつ
+# デスクトップに「動画タイトル.拡張子」で保存する場合
+yt-dlp -f 135+140 -o "/Users/sasaki/Downloads/%(title)s.%(ext)s" "https://www.youtube.com/watch?v=vju0ljpNwKA"
+```
+
 ---
 
 ## 🛠️ 3. 超便利！おすすめ実践コマンド集

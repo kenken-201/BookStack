@@ -78,3 +78,4 @@ BookStackの最も中心となるドメイン「Entities」のコードを、1�
 *   **エディタの「定義元へ移動」を駆使する**: VS CodeやPHPStormなどのエディタを使用している場合、メソッド名の上で `Cmd + クリック`（Mac）をすることで、コントローラーからリポジトリ、モデルへと一瞬でジャンプできます。このToDoに沿ってジャンプしながら読むと、圧倒的にタイパが上がります！
 
 
+yt-dlp -f 135+140 "https://www.youtube.com/watch?v=vju0ljpNwKA"
