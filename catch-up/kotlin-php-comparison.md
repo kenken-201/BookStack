@@ -171,11 +171,155 @@ Auth::check();
 
 ---
 
-## 5. キャッチアップのためのまとめ
+## 5. LaravelのDI（依存注入）とPHP 8のコンストラクタ
+
+BookStackのコントローラー等で頻繁に目にする、依存関係の自動注入の仕組みと文法について、Kotlinと対比します。
+
+### A. コンストラクタのプロパティ昇格 (Constructor Property Promotion)
+`BookController` などのコンストラクタ定義には、一見不思議な記法があります。
+
+```php
+public function __construct(
+    protected ShelfContext $shelfContext,
+    protected BookRepo $bookRepo,
+) {
+}
+```
+
+これはPHP 8.0で導入された「**コンストラクタのプロパティ昇格**」という文法です。
+コンストラクタの引数に `protected` や `private` を書くことで、**「メンバ変数の宣言」「引数の受け取り」「メンバ変数への代入」をすべて1箇所で自動的に行う**仕様です。
+
+*   **Kotlinでの完全な等価表現**:
+    Kotlinのプライマリコンストラクタと**全く同じ概念・動作**です！
+    ```kotlin
+    class BookController(
+        protected val shelfContext: ShelfContext,
+        protected val bookRepo: BookRepo
+    ) : Controller()
+    ```
+    Kotlinを知っているあなたからすれば、むしろ一番自然に頭に入ってくる文法のはずです。
+
+### B. 自動依存注入（DIコンテナの魔法）
+上記のコンストラクタに対し、あなた自身が `new BookController(...)` と手動でインスタンス化コードを書くことはありません。
+Laravelの「DIコンテナ（サービスコンテナ）」が、型宣言（Type Hinting）を頼りに、必要なクラスのインスタンスを自動的に作成・解決してコンストラクタに流し込んでくれます。
+
+*   **Kotlin (Spring Bootなど) でのイメージ**:
+    Spring Frameworkの `@Autowired` やコンストラクタインジェクションと同様です。型を定義しておくだけで自動的に適切なBean（インスタンス）が差し込まれます。
+
+### C. アクションメソッドへの自動注入 (Method Injection)
+Laravelでは、コンストラクタだけでなく、コントローラーの個別のメソッド（アクション）に対してもDIが機能します。
+`BookController@show` の引数リストを見てみましょう。
+
+```php
+public function show(Request $request, ActivityQueries $activities, string $slug)
+```
+
+この時、Laravelは以下のハイブリッドな解決を行います：
+1.  **型宣言がある引数 (`Request $request`, `ActivityQueries $activities`)**:
+    DIコンテナからインスタンスを自動的に解決して注入します。
+2.  **型宣言がない、またはルーティングパラメータに一致する変数 (`string $slug`)**: 
+    `routes/web.php` で定義されたプレースホルダー（`/books/{slug}`）に入力された実際の値（例: `my-book`）を、引数の名前（`$slug`）にマッピングして自動で引き渡します。
+
+これにより、コントローラーのメソッド内は余計なインスタンス化やURLパラメータの解析処理を挟むことなく、ビジネスロジックに集中できるスマートな作りになっています。
+
+<details><summary>BookController@showについての詳細解説</summary>
+
+### 1. DIコンテナは「どのように」用いられているか？
+
+LaravelのDIコンテナ（サービスコンテナ）は、コントローラーが動作する際に **「引数の型（型宣言/Type Hinting）」をリフレクションで自動解析し、必要なインスタンスを裏側で作成・注入** しています。
+
+`BookController` では、これが **「コンストラクタ」** と **「メソッド（アクション）」** の2箇所で機能しています。
+
+#### ① コンストラクタでの自動注入 (Constructor Injection)
+`BookController` のコンストラクタは以下のようになっています。
+
+```php
+public function __construct(
+    protected ShelfContext $shelfContext,
+    protected BookRepo $bookRepo,
+    protected BookQueries $queries,
+    // ...
+) {}
+```
+これはPHP 8の「**コンストラクタのプロパティ昇格**」という文法で、Kotlinのプライマリコンストラクタと全く同じです。
+
+```kotlin
+// Kotlinでの等価表現 (プライマリコンストラクタ)
+class BookController(
+    protected val shelfContext: ShelfContext,
+    protected val bookRepo: BookRepo,
+    protected val queries: BookQueries,
+    // ...
+) : Controller()
+```
+
+Laravelがこのコントローラーを動かす際、引数の型（`ShelfContext`, `BookRepo` など）を見て、コンテナからそれぞれの実体（インスタンス）を自動で解決し、コンストラクタに流し込みます。
+そのため、開発者は手動で `new` する必要がなく、コントローラー内ではいつでも `$this->bookRepo` や `$this->queries` を使ってこれらにアクセスできます。
+
+#### ② アクションメソッドでの自動注入 (Method Injection)
+`show` メソッドの引数リストは以下の通りです。
+
+```php
+public function show(Request $request, ActivityQueries $activities, string $slug)
+```
+
+ここでは、Laravelが非常にスマートな「**ハイブリッド解決**」を行っています。
+
+1.  **型宣言がある引数 (`Request $request`, `ActivityQueries $activities`)**
+    DIコンテナが自動的にインスタンスを作成・解決して注入します。
+2.  **型宣言がない、またはルーティングパラメータに一致する引数 (`string $slug`)**
+    `routes/web.php` の `/books/{slug}` という定義に基づき、URLから抽出された実際の文字列（例: `my-book`）を名前ベースで自動マッピングして渡します。
+
+---
+
+### 2. どういうルールで「Repos（リポジトリ）」が呼び出されているか？
+
+実は、`show` メソッドの中身を注意深く見ると、**`BookRepo`（リポジトリ）のメソッドは一度も呼び出されていません**。
+その代わり、`$this->queries`（`BookQueries`）というクラスが使われています。
+
+```php
+// showメソッド内でのデータ取得処理
+$book = $this->queries->findVisibleBySlugOrFail($slug);
+```
+
+ここに、BookStackの極めて綺麗で一貫した **「CQRS（コマンド・クエリ責務分離）」** ライクな設計ルールが存在します。
+
+#### 💡 BookStackのデータアクセス・ルール
+BookStackでは、データベースとやり取りするロジックを「読み取り」と「書き込み」で明確に分離しています。
+
+| レイヤー | 担当する役割 | 主に使われるコントローラーのメソッド |
+| :--- | :--- | :--- |
+| **`Queries` (参照系)** | データの**取得・検索・絞り込み**。DBからの読み出し専用。 | `index` (一覧), `show` (詳細), `edit` (編集画面の表示) |
+| **`Repos` (更新系)** | データの**作成・更新・削除**。ビジネスロジックを伴う状態変更。 | `store` (新規作成), `update` (更新処理), `destroy` (削除) |
+
+#### 実際のコントローラーコードでの使い分け：
+*   **詳細表示 (`show` メソッド) — [参照系]**
+    データをDBから読み出すだけなので、`BookQueries` を使います。
+    `$this->queries->findVisibleBySlugOrFail($slug)`
+*   **新規登録 (`store` メソッド) — [更新系]**
+    データの新規作成（状態の変更）を行うため、`BookRepo` を使います。
+    `$this->bookRepo->create($validated)`
+*   **更新処理 (`update` メソッド) — [更新系]**
+    データの書き換えを行うため、`BookRepo` を使います。
+    `$book = $this->bookRepo->update($book, $validated)`
+
+### 🌟 Kotlin開発者としての視点でのまとめ
+Kotlin (あるいはJavaのSpring Frameworkなど) に慣れているsasakisさんから見れば、この構造は **「Spring Bootのコンストラクタインジェクション」や「読み取り専用サービス（Read-only Service）と更新用サービス（Write Service）の分割」と本質的に全く同じ** です。
+
+PHP特有の記号（`->` や `$`）さえクリアできれば、背後で動いているオブジェクト指向やDIの設計思想はすでに馴染みのあるものばかりですので、恐れる必要は全くありません！
+
+この流れを意識した上で、改めて `BookController@show` のコードを眺めてみてください。非常に見通しが良く感じられるはずです！
+</details>
+
+---
+
+## 6. キャッチアップのためのまとめ
 *   PHPの **`->`** は、Kotlinの **`.`** と全く同じ！
 *   PHPの **`::`** は、Kotlinの **`.` (静的アクセス / companion object)** や **`::class`** に相当！
 *   PHPの **`=>`** は、Kotlinの **`to` (Mapの定義)** と同じ！
 *   PHPの **`.`** は文字列結合！Kotlinの **`+`** に相当するので注意！
+*   PHP 8の **`__construct(protected ...)`** は、Kotlinの **プライマリコンストラクタ `(protected val ...)`** と全く同じ！
+*   **型宣言（Type Hinting）** を引数に書いておくだけで、LaravelのDIコンテナが自動的にインスタンスを解決・注入してくれる！
 
 これさえ頭に入れておけば、BookStackのコントローラーやモデルのコードが、驚くほどスラスラ読めるようになります！
 さらに深く知りたい文法や、BookStack固有の実装があれば、いつでも気軽に聞いてくださいね。
