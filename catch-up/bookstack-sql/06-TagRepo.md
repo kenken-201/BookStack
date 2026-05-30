@@ -2,6 +2,16 @@
 
 元のリポジトリファイル: [TagRepo.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Activity/TagRepo.php)
 
+## 6. 【上級】MySQL関数を絡めた動的な集計クエリ
+### 📂 ファイル: [TagRepo.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Activity/TagRepo.php)
+*   **主なテーマ**: 単純なCRUDに留まらない、集計（Analytics）系SQL。
+*   **ここから学べること**:
+    *   `DB::raw()` を用いた、生SQL関数（`COUNT(distinct value)`, `SUM(IF(entity_type = 'page', 1, 0))` 等）のセレクト。
+    *   リクエストパラメータの内容に応じて、`groupBy()` のグループ化単位を動的に切り替えるロジック。
+    *   `$query->pluck('name')` による、余計なモデル化を挟まないダイレクトな一次元配列抽出。
+*   **キャッチアップのポイント**:
+    「各タグがどのエンティティで何回使われているか」を1回のSQLクエリで効率よく集計し、フロントエンドに渡すための高速化テクニックが詰まっています。
+
 ---
 
 ## 1. クロス集計と動的GROUP BYクエリ

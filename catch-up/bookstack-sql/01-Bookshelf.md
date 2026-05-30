@@ -2,6 +2,16 @@
 
 元のモデルファイル: [Bookshelf.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Entities/Models/Bookshelf.php)
 
+## 1. 【初級】多対多リレーションと中間テーブル操作
+### 📂 ファイル: [Bookshelf.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Entities/Models/Bookshelf.php)
+*   **主なテーマ**: Eloquentにおける「多対多（N対N）」リレーションの定義とピボット操作。
+*   **ここから学べること**:
+    *   `belongsToMany()` による中間テーブルを介したリレーションシップの定義方法。
+    *   `withPivot('order')` を用いて、中間テーブル（Pivot）に持たせた追加カラムを取得する仕組み。
+    *   `attach($bookId, ['order' => $maxOrder + 1])` を使い、中間テーブルにアソシエーションデータを挿入する処理。
+*   **キャッチアップのポイント**:
+    「本棚とブック」というもっとも分かりやすい関係性を通じて、Laravelにおけるテーブル結合の基本と、リレーション先のデータを操作する作法が一発で理解できます。
+
 ---
 
 ## 1. 本棚に紐づくブック（Book）の一覧を取得する

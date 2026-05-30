@@ -2,6 +2,17 @@
 
 元のリポジトリファイル: [BaseRepo.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Entities/Repos/BaseRepo.php)
 
+## 3. 【中級】標準的なデータ保存フロー（CRUD）
+### 📂 ファイル: [BaseRepo.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Entities/Repos/BaseRepo.php)
+*   **主なテーマ**: リポジトリ層でのモデルの新規作成・更新ライフサイクル。
+*   **ここから学べること**:
+    *   `$entity->fill($input)` による複数カラムの安全な一括代入（Mass Assignment）。
+    *   `forceFill()` による、モデルの保護ガードを一時的にバイパスしたデータ書き込み。
+    *   `save()`, `touch()`, `refresh()` の実戦的な使い分け。
+*   **キャッチアップのポイント**:
+    実務で最も頻繁に実装する「フォームからの入力を受け取って安全にレコードを保存する」という処理の、お手本のようなベストプラクティスが学べます。
+
+
 ---
 
 ## 1. 新規レコードの挿入 (create)

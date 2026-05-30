@@ -2,6 +2,15 @@
 
 元のユーティリティファイル: [DatabaseTransaction.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Util/DatabaseTransaction.php)
 
+## 4. 【上級】データベーストランザクションと分離レベル
+### 📂 ファイル: [DatabaseTransaction.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Util/DatabaseTransaction.php)
+*   **主なテーマ**: トランザクション処理による一貫性保持と競合回避。
+*   **ここから学べること**:
+    *   `DB::transaction(Closure)` を用いた、例外発生時に自動でロールバックするクロージャ型トランザクション。
+    *   トランザクション開始前に `DB::statement('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED')` を実行し、トランザクションの分離レベルをスマートに変更する実装。
+*   **キャッチアップのポイント**:
+    データ整合性が極めて重要な権限再生成処理などのデッドロックを防ぎ、安全に並行処理させるための堅牢なSQL設計の裏側が分かります。
+
 ---
 
 ## 1. トランザクション制御と分離レベル設定

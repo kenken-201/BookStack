@@ -2,6 +2,17 @@
 
 元の検索ランナーファイル: [SearchRunner.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Search/SearchRunner.php)
 
+## 7. 【超上級】サブクエリJOINと動的SQLスコアリングの最高峰
+### 📂 ファイル: [SearchRunner.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Search/SearchRunner.php)
+*   **主なテーマ**: 複雑な検索条件に応じた動的クエリの生成とスコア判定。
+*   **ここから学べること**:
+    *   `joinSub($subQuery, 's', ...)` による、クエリビルダで作成した集計用サブクエリとベーステーブルのインナージョイン。
+    *   `CASE WHEN` や `IF(term like ?, score * ...)` のSQL文と bindings（プリペアドステートメント用のパラメータ）を動的に配列で組み立てる `selectRaw` テクニック。
+    *   `whereHas` / `whereDoesntHave` にクロージャを渡して、関連テーブルの有無（Not In等）をフィルタする高度な絞り込み。
+    *   最新のコメント行のみを抽出するための「LEFT JOINとNULL判定」を駆使した高度なソート用サブクエリJOIN（`sortByLastCommented` メソッド）。
+*   **キャッチアップのポイント**:
+    Laravelのクエリビルダが持つ表現力の限界に近い、極めて複雑かつ高度な動的SQLです。これが理解できれば、実務のあらゆるデータ抽出要件に対応できます。
+
 ---
 
 ## 1. 検索スコアリングのサブクエリJOIN

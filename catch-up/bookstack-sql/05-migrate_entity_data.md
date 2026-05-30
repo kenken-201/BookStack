@@ -2,6 +2,16 @@
 
 元のマイグレーションファイル: [2025_09_15_134701_migrate_entity_data.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/database/migrations/2025_09_15_134701_migrate_entity_data.php)
 
+## 5. 【上級】バルクインサートによる高速データ移行
+### 📂 ファイル: [2025_09_15_134701_migrate_entity_data.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/database/migrations/2025_09_15_134701_migrate_entity_data.php)
+*   **主なテーマ**: クエリビルダを使用した超高速なETL処理（データ移行）。
+*   **ここから学べること**:
+    *   `DB::beginTransaction()` と `DB::commit()` を明示的に使う手動トランザクション制御。
+    *   `DB::table('...')->insertUsing(...)` を用いた、PHPのメモリを消費しない「他テーブルからのサブクエリ付き高速バルクインサート（SELECT INSERT）」。
+    *   `whereNotIn` の条件に別のクエリビルダインスタンス（サブクエリ）を引き渡して、整合性の取れないデータを一瞬でUPDATEでクリーンアップする実戦テクニック。
+*   **キャッチアップのポイント**:
+    本番環境のデータベース構造を大規模アップデートする際に、数秒〜数ミリ秒で数万件のデータを一気に移行するためのクエリビルダの真の実力が学べます。
+
 ---
 
 ## 1. 他テーブルからのサブクエリ付きバルクインサート (SELECT INSERT)

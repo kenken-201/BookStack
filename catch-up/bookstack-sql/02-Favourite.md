@@ -2,6 +2,16 @@
 
 元のモデルファイル: [Favourite.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Activity/Models/Favourite.php)
 
+## 2. 【中級】ポリモーフィックリレーションシップの設計
+### 📂 ファイル: [Favourite.php](file:///Users/sasaki/Desktop/progDoc/バックエンド/BookStack/app/Activity/Models/Favourite.php)
+*   **主なテーマ**: 複数の異なるモデルを1つのテーブルに柔軟に紐付ける技術。
+*   **ここから学べること**:
+    *   `morphTo()` によるポリモーフィック関係のモデル定義。
+    *   `favouritable_type` と `favouritable_id` の自動マッピングの仕組み。
+    *   ポリモーフィックリレーションに、さらに `whereColumn()` を絡めた独自の `HasMany` リレーションを定義する高度なテクニック（`jointPermissions` メソッド）。
+*   **キャッチアップのポイント**:
+    BookStackの「ブック」「章」「ページ」というバラバラのエンティティに対して、共通で「お気に入り」機能を付与する美しいポリモーフィックの設計を学べます。
+
 ---
 
 ## 1. お気に入りレコードに対応する親エンティティを取得する
