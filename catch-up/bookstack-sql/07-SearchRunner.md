@@ -22,27 +22,34 @@
 protected function applyTermSearch(EloquentBuilder $entityQuery, SearchOptions $options, array $entityTypes): void
 {
     $terms = $options->searches->toValueArray();
+    if (count($terms) === 0) {
+        return;  // 検索語が空なら何もしない
+    }
+
+    // 1. 各検索語の希少度スコア係数を取得（後述）
+    $scoredTerms = $this->getTermAdjustments($options);
     
-    // スコア計算用のステートメントを動的に作成 (IFChain)
+    // 2. スコア計算用のSQLスニペットを動的生成
     $scoreSelect = $this->selectForScoredTerms($scoredTerms);
 
+    // 3. search_terms テーブルからスコアを集計するサブクエリを組み立て
     $subQuery = DB::table('search_terms')->select([
         'entity_id',
         'entity_type',
-        DB::raw($scoreSelect['statement']),
+        DB::raw($scoreSelect['statement']),  // SUM(IF(term like ?, score * 1.2, ...)) as score
     ]);
-    
     $subQuery->addBinding($scoreSelect['bindings'], 'select');
     
-    // 検索語の結合
+    // 4. OR 条件で検索語にマッチするレコードを絞り込み
     $subQuery->where(function (Builder $query) use ($terms) {
         foreach ($terms as $inputTerm) {
-            $query->orWhere('term', 'like', $inputTerm . '%');
+            $escapedTerm = str_replace('\\', '\\\\', $inputTerm);  // バックスラッシュのエスケープ
+            $query->orWhere('term', 'like', $escapedTerm . '%');    // 前方一致検索
         }
     });
     $subQuery->groupBy('entity_type', 'entity_id');
 
-    // ★サブクエリとのINNER JOIN
+    // 5. ★サブクエリとのINNER JOIN（マッチしたエンティティのみ残る）
     $entityQuery->joinSub($subQuery, 's', function (JoinClause $join) {
         $join->on('s.entity_id', '=', 'entities.id')
             ->on('s.entity_type', '=', 'entities.type');
@@ -50,6 +57,23 @@ protected function applyTermSearch(EloquentBuilder $entityQuery, SearchOptions $
     
     $entityQuery->addSelect('s.score');
     $entityQuery->orderBy('score', 'desc');
+}
+
+// --- スコア計算用SQLの生成ロジック ---
+protected function selectForScoredTerms(array $scoredTerms): array
+{
+    // IF文を「後ろから前に」組み立てる（ネスト構造のため）
+    // 初期値 '0' = どの語にもマッチしなかった場合のスコア
+    $ifChain = '0';
+    $bindings = [];
+    foreach ($scoredTerms as $term => $score) {
+        $ifChain = 'IF(term like ?, score * ' . (float) $score . ', ' . $ifChain . ')';
+        $bindings[] = $term . '%';
+    }
+    return [
+        'statement' => 'SUM(' . $ifChain . ') as score',
+        'bindings'  => array_reverse($bindings),  // IFは逆順に組み立てたので bindings も反転
+    ];
 }
 ```
 
@@ -99,8 +123,12 @@ ORDER BY
 ### 📝 解説・対比のポイント
 *   **joinSub() によるサブクエリJOIN**:
     Laravelの `joinSub($query, 'alias', function)` は、クエリビルダを用いて組み立てた複雑な集計用サブクエリを、SQLの `INNER JOIN (SELECT ...) AS alias` として効率的にインナージョインします。
-*   **動的なIFのネスト（IFChain）**:
-    検索エンジン機能における「希少性の高い単語ほどヒットした時のスコア配点を高くする」ための複雑なアルゴリズムを、SQLの `IF(term like ?, score * multiplier, else_score)` の多重ネスト構造によってデータベースエンジン側で一括計算しています。
+*   **動的なIFのネスト（IFChain）の構築順序**:
+    `selectForScoredTerms` では IF 文を「後ろから前に」組み立てます。これはIFのネスト構造上、「else側に前回の結果を埋め込む」必要があるためです。その結果、bindings の順序も逆転するため `array_reverse()` で正しい順序に戻しています。
+*   **希少度スコアの仕組み**:
+    `getTermAdjustments()` メソッドが各検索語の出現回数をカウントし、よく使われる語ほどスコア係数が低く（`1.3 - 1.0 = 0.3`）、希少な語ほど係数が高く（`1.3 - 0.1 = 1.2`）なるよう調整されます。これにより、希少なキーワードでヒットしたエンティティが検索結果の上位に来るようになります（TF-IDFに似た考え方）。
+*   **エスケープ処理**:
+    `str_replace('\\', '\\\\', $inputTerm)` は、ユーザー入力中のバックスラッシュをエスケープし、MySQLの `LIKE` 句でワイルドカードとして誤解釈されるのを防いでいます。
 
 ---
 

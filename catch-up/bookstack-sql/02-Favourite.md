@@ -54,7 +54,9 @@ WHERE
 ```
 
 ### 📝 解説・対比のポイント
-*   **ポリモーフィック関係の解決**: 単一の `morphTo` は、SQLレベルでは1回のクエリでは解決されません。まず結合親のタイプ（`favouritable_type`）とIDを取得したあと、そのタイプが指し示すテーブル（BookStackでは `entities` テーブル）に対して2回目の検索クエリを実行します（Lazy Loading時）。
+*   **ポリモーフィック関係の解決**: 単一の `morphTo` は、SQLレベルでは1回のクエリでは解決されません。まず結合親のタイプ（`favouritable_type`）とIDを取得したあと、そのタイプが指し示すテーブルに対して2回目の検索クエリを実行します（Lazy Loading時）。
+*   **Kotlinとの対比**: Kotlinで同様の設計を行う場合、「型を表すカラム」と「IDカラム」の組み合わせで手動解決するか、Sealed ClassとDiscriminatorカラムを使ってマッピングする必要があります。Laravelでは `morphTo()` 一行でこの解決が自動化されます。
+*   **Eager Loading**: `Favourite::with('favouritable')` とすると、N+1問題を回避して型ごとにまとめてクエリを実行します（例: `WHERE id IN (:id1, :id2, ...)`）。
 
 ---
 
@@ -92,3 +94,5 @@ WHERE
 *   **whereColumnによるポリモーフィックHasMany**:
     通常、`hasMany` は単一の外部キー（`entity_id = favouritable_id`）のみで結合しますが、ポリモーフィックのままで結合するために、Laravelの `whereColumn()` を用いて `favourites.favouritable_type = joint_permissions.entity_type` の条件も追加します。
     生SQLでは、`ON` 句の中に `AND` 条件としてきれいに2カラムの結合式がマッピングされます。
+*   **なぜ通常のポリモーフィックリレーションを使わないのか**:
+    `joint_permissions` テーブルは `favourites` テーブルと直接の親子関係にないため、`morphMany` は使えません。代わりに `hasMany` + `whereColumn` で「同じエンティティを指すレコード同士を結合する」という高度なテクニックを実現しています。

@@ -64,6 +64,10 @@ COMMIT;
 
 ### 📝 解説・対比のポイント
 *   **DB::transaction(Closure)**:
-    Laravelのクロージャを受け取る `DB::transaction()` メソッドは、内部で `try { ... DB::commit(); } catch { DB::rollBack(); throw $e; }` のような例外キャッチ処理を自動で行います。
+    Laravelのクロージャを受け取る `DB::transaction()` メソッドは、内部で `try { ... DB::commit(); } catch { DB::rollBack(); throw $e; }` のような例外キャッチ処理を自動で行います。Kotlinでは `transaction { ... }` ブロック（Exposedフレームワーク等）が対応しますが、Laravelではクロージャベースで同様の自動ロールバック機構を実現しています。
 *   **READ COMMITTED**:
     Laravel標準のトランザクションはDB側のデフォルト分離レベルに依存するため、`DB::statement('SET SESSION...')` を使って明示的にセッションスコープの分離レベルを書き換えています。これにより、デッドロックの回避や高並行性環境での一貫性担保を両立させています。
+*   **SESSION スコープの意味**:
+    `SET SESSION TRANSACTION ISOLATION LEVEL` はそのDB接続（セッション）全体に影響します。`SET TRANSACTION` だけだと次の1トランザクションのみが対象ですが、`SESSION` を付けるとその接続が切れるまで有効です。BookStackではこのクラスが既にネストされたトランザクション内で呼ばれる可能性を考慮して `SESSION` を使用しています。
+*   **FOR UPDATE（悲観ロック）**:
+    生SQLの例にある `SELECT ... FOR UPDATE` は、トランザクション中に対象行を排他ロックし、他のトランザクションが同じ行を変更するのを防ぎます。Laravelでは `$query->lockForUpdate()` で同等の処理を実現できます。

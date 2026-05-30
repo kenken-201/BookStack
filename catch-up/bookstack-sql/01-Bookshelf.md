@@ -108,7 +108,7 @@ ORDER BY
 ```
 
 ### 📝 解説・対比のポイント
-*   **多対多関係の結合**: Laravelの `belongsToMany` を使用すると、内部的にベーステーブルと中間テーブルが `INNER JOIN` されます。
+*   **多対多関係の結合**: Laravelの `belongsToMany` を使用すると、内部的にベーステーブルと中間テーブルが `INNER JOIN` されます。Kotlin/Roomでは、中間テーブル用の `@Entity` を別途定義して `@Relation` で紐付けるのが近いですが、Laravelでは `belongsToMany` 一行で完結します。
 *   **withPivot**: 中間テーブル（`bookshelves_books`）のみが持つ `order` 属性を取得するため、SQL側で `bookshelves_books.order AS pivot_order` を明示的にセレクトに加えます。
 
 ---
@@ -154,5 +154,6 @@ INSERT INTO bookshelves_books (
 ```
 
 ### 📝 解説・対比のポイント
-*   **attach() メソッド**: 多対多リレーションに新たな関係レコードを追加する際、Laravelは中間テーブルに対して直接 `INSERT` 文を実行します。
-*   **COALESCE**: `MAX(order)` が `NULL` （本がまだ1冊もない場合）の時にエラーを防ぐため、SQLでは `COALESCE` を用いてデフォルト値 `0` を返します。
+*   **attach() メソッド**: 多対多リレーションに新たな関係レコードを追加する際、Laravelは中間テーブルに対して直接 `INSERT` 文を実行します。なお、関係の削除には `detach()`、全件差し替えには `sync()` を使います。
+*   **contains() による重複チェック**: `appendBook` はまず `$this->contains($book)` で既に本棚に含まれているかを確認します。これは内部的に `COUNT(*)` クエリを実行し、中間テーブルの一意性をアプリケーション側で担保しています。
+*   **COALESCE**: `MAX(order)` が `NULL` （本がまだ１冊もない場合）の時にエラーを防ぐため、SQLでは `COALESCE` を用いてデフォルト値 `0` を返します。
