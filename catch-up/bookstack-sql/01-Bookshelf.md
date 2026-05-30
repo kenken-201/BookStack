@@ -14,6 +14,50 @@
 
 ---
 
+## 🛠️ Eloquentモデルの基本構成とプロパティの解説
+
+`Bookshelf` モデルのクラス宣言直後にある、メタデータ宣言や設定値の意味と役割を、Kotlinでの設計アプローチと対比しながら解説します。
+
+```php
+class Bookshelf extends Entity implements HasDescriptionInterface, HasCoverInterface
+{
+    use HasFactory;
+    use ContainerTrait;
+
+    public float $searchFactor = 1.2;
+
+    protected $hidden = ['pivot', 'image_id', 'deleted_at', 'description_html', 'priority', 'default_template_id', 'sort_rule_id', 'entity_id', 'entity_type', 'chapter_id', 'book_id'];
+    protected $fillable = ['name'];
+}
+```
+
+### 1. `use HasFactory;` / `use ContainerTrait;` (トレイトの利用)
+*   **PHPでの役割**: **「Trait（トレイト）」による多重継承のシミュレート（コードの再利用）**。
+    PHPは単一継承の言語であるため、複数の独立したクラス間で共通のプロパティやメソッドを使い回す仕組みとして「Trait」があります。クラス内で `use Trait名;` を宣言すると、そのTraitの中身がそのままコンパイル時にクラス内へコピペされたかのように動作します。
+    *   `HasFactory`: テストデータ生成用のFactoryクラス（`Bookshelf::factory()`）を有効化するLaravel標準のトレイト。
+    *   `ContainerTrait`: BookStackが独自に実装した、「配下にコンテンツを持つことができるコンテナ（本棚、ブック、章）」に共通する独自メソッド群。
+*   **Kotlinでの対比**: **「インターフェースのデフォルト実装」** や **「Delegation（`by` キーワードによるデリゲーション）」** に極めて近いです。
+    Kotlinではインターフェース自体にメソッドの具象処理を書けるため、PHPのTraitと同じようなアプローチで共通機能の多重インポートが可能です。
+
+### 2. `public float $searchFactor = 1.2;` (独自パラメータ)
+*   **PHPでの役割**: **BookStackの検索ロジック用のエンティティ重み付け設定**。
+    これはLaravelの機能ではなく、BookStack独自のプロパティです。検索エンジン（`SearchRunner`）がキーワード検索を行った際、ヒットしたエンティティの基本スコアにこの係数（本棚は1.2倍、本やページは異なる数値）を掛け合わせ、検索結果の優先順位をコントロールするために使われます。
+*   **Kotlinでの対比**: 単なる「クラスのメンバープロパティ（初期値設定）」と同じです。
+
+### 3. `protected $hidden = [...]` (JSON変換時のシリアライズ除外)
+*   **PHPでの役割**: **APIやJSONレスポンスへのシリアライズ時に隠すカラムのブラックリスト**。
+    `$bookshelf->toJson()` が呼び出された際や、APIコントローラーでモデルがそのまま返された際に、フロントエンドやセキュリティ上露出させたくないデータベース内の内部ID（`image_id`, `book_id` 等）やソフトデリートフラグ（`deleted_at`）などを自動でマスキングして取り除きます。
+*   **Kotlinでの対比**: JacksonやMoshi等のシリアライザで使用する **`@JsonIgnore`** アノテーションを、クラス内に一括設定しているのと本質的に同一です。
+
+### 4. `protected $fillable = ['name'];` (一括代入のホワイトリスト)
+*   **PHPでの役割**: **一括代入（Mass Assignment）が可能なカラムの指定**。
+    Laravelでは、クライアントから送られたリクエストパラメータ（Map形式）を `$bookshelf->fill($request->all())` や `Bookshelf::create(...)` で直接モデルに流し込んで保存することが多くあります。
+    このとき、悪意のあるユーザーがHTTPリクエストを改ざんし、予期しないシステム管理フィールド（例: `is_admin = true` や `id = 999`）を強制上書きして保存するセキュリティ脆弱性（Mass Assignment 脆弱性）を防ぐため、**「一括で書き換えても安全なカラム（ホワイトリスト）」** として `name` のみを指定しています。これ以外のカラムは、`forceFill()` を使わない限り一括代入が弾かれます。
+*   **Kotlinでの対比**: Kotlinでは「一度DTOに受け取り、そのDTOの安全なプロパティのみをドメインモデルのコンストラクタに引き渡す」ことで安全性を担保するのが主流です。Laravelでは、そのDTOによる型安全な保護レイヤーの代わりに、この `$fillable` というモデル側の設定で脆弱性を防止しています。
+
+---
+
+
 ## 1. 本棚に紐づくブック（Book）の一覧を取得する
 
 ### 💡 ORMソースコード (PHP)
